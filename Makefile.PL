@@ -6,6 +6,11 @@ author   q{Lenz Gschwendtner <norbu09@cpan.org>};
 license  'perl';
 
 requires 'File::ShareDir';
+requires 'Class::Data::Inheritable';
+requires 'Class::Accessor';
+requires 'XML::LibXML';
+requires 'Params::Validate';
+
 build_requires 'Test::More';
 
 install_share  'share/Net-AMQP';
