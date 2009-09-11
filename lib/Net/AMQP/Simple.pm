@@ -12,7 +12,7 @@ use File::ShareDir 'dist_file';
 use Data::Dumper;
 
 our $remote;
-our $debug = 1;
+our $debug;
 
 sub connect {
     my $spec = shift;
