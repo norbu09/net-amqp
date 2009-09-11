@@ -8,14 +8,16 @@ use Net::AMQP;
 use Net::AMQP::Protocol;
 use Net::AMQP::Common qw(:all);
 use IO::Socket::INET;
+use File::ShareDir 'dist_file';
 use Data::Dumper;
 
 our $remote;
-our $debug = 0;
+our $debug = 1;
 
 sub connect {
     my $spec = shift;
-    Net::AMQP::Protocol->load_xml_spec('../../net-amqp/spec/amqp0-8.xml');
+    my $file = File::ShareDir::dist_file('Net-AMQP', 'amqp0-8.xml');
+    Net::AMQP::Protocol->load_xml_spec($file);
 
     $remote = IO::Socket::INET->new(
         Proto    => "tcp",
@@ -34,14 +36,15 @@ sub connect {
 
 sub queue {
     my $queue = shift;
+    my $auto = shift;
     my %opts = (
         ticket       => 0,
         queue        => $queue,
         consumer_tag => '',                 # auto-generated
-                                            #no_local     => 0,
+        #no_local     => 0,
         no_ack       => 1,
         exclusive    => 0,
-
+        auto_delete  => ($auto ? 1 : 0),
         #nowait       => 0, # do not send the ConsumeOk response
     );
     my $output =
@@ -71,6 +74,35 @@ sub poll {
     return @result;
 }
 
+sub queue_delete {
+    my $queue = shift;
+    my %opts = (
+        ticket       => 0,
+        queue        => $queue,
+        #if_unused    => 0,
+        if_empty     => 1,
+        #nowait       => 0, # do not send the ConsumeOk response
+    );
+    my $output =
+      Net::AMQP::Frame::Method->new(
+        method_frame => Net::AMQP::Protocol::Queue::Delete->new(%opts) );
+    my $frame =
+      $output->isa("Net::AMQP::Protocol::Base") ? $output->frame_wrap : $output;
+    $frame->channel(2);
+    _print($frame);
+    _read();
+}
+
+sub close {
+    my $output =
+      Net::AMQP::Frame::Method->new(
+        method_frame => Net::AMQP::Protocol::Connection::Close->new() );
+    my $frame =
+      $output->isa("Net::AMQP::Protocol::Base") ? $output->frame_wrap : $output;
+    $frame->channel(0);
+    _print($frame);
+
+}
 
 sub _read {
 
