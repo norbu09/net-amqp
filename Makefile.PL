@@ -10,6 +10,7 @@ requires 'Class::Data::Inheritable';
 requires 'Class::Accessor';
 requires 'XML::LibXML';
 requires 'Params::Validate';
+requires 'BerkeleyDB';
 
 build_requires 'Test::More';
 

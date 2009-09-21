@@ -10,13 +10,14 @@ use Net::AMQP::Common qw(:all);
 use IO::Socket::INET;
 use File::ShareDir 'dist_file';
 use Data::Dumper;
+use BerkeleyDB;
 
 our $remote;
 our $debug;
 
 sub connect {
     my $spec = shift;
-    my $file = File::ShareDir::dist_file('Net-AMQP', 'amqp0-8.xml');
+    my $file = File::ShareDir::dist_file( 'Net-AMQP', 'amqp0-8.xml' );
     Net::AMQP::Protocol->load_xml_spec($file);
 
     $remote = IO::Socket::INET->new(
@@ -36,15 +37,16 @@ sub connect {
 
 sub queue {
     my $queue = shift;
-    my $auto = shift;
-    my %opts = (
+    my $auto  = shift;
+    my %opts  = (
         ticket       => 0,
         queue        => $queue,
-        consumer_tag => '',                 # auto-generated
-        #no_local     => 0,
+        consumer_tag => '',                  # auto-generated
+                                             #no_local     => 0,
         no_ack       => 1,
         exclusive    => 0,
-        auto_delete  => ($auto ? 1 : 0),
+        auto_delete  => ( $auto ? 1 : 0 ),
+
         #nowait       => 0, # do not send the ConsumeOk response
     );
     my $output =
@@ -66,9 +68,9 @@ sub queue {
 sub poll {
     my @frames = _read();
     my @result;
-    foreach my $frame (@frames){
+    foreach my $frame (@frames) {
         if ( $frame->isa('Net::AMQP::Frame::Body') ) {
-            push(@result, $frame->{payload});
+            push( @result, $frame->{payload} );
         }
     }
     return @result;
@@ -76,11 +78,13 @@ sub poll {
 
 sub queue_delete {
     my $queue = shift;
-    my %opts = (
-        ticket       => 0,
-        queue        => $queue,
+    my %opts  = (
+        ticket => 0,
+        queue  => $queue,
+
         #if_unused    => 0,
-        if_empty     => 1,
+        if_empty => 1,
+
         #nowait       => 0, # do not send the ConsumeOk response
     );
     my $output =
@@ -202,22 +206,26 @@ sub callbacks {
 }
 
 sub pub {
-    my($queue, $message) = @_;
-    
+    my ( $queue, $message ) = @_;
+
     my %method_opts = (
-        ticket      => 0,
+        ticket => 0,
+
         #exchange    => '', # default exchange
-        routing_key => $queue, # route to my queue
+        routing_key => $queue,    # route to my queue
         mandatory   => 1,
+
         #immediate   => 0,
     );
 
     my %content_opts = (
-        content_type     => 'application/octet-stream',
+        content_type => 'application/octet-stream',
+
         #content_encoding => '',
         #headers          => {},
-        delivery_mode    => 1, # non-persistent
-        priority         => 1,
+        delivery_mode => 1,       # non-persistent
+        priority      => 1,
+
         #correlation_id   => '',
         #reply_to         => '',
         #expiration       => '',
@@ -230,24 +238,27 @@ sub pub {
     );
 
     my $output = Net::AMQP::Protocol::Basic::Publish->new(%method_opts);
-    my $frame = $output->isa("Net::AMQP::Protocol::Base") ? $output->frame_wrap : $output;
+    my $frame =
+      $output->isa("Net::AMQP::Protocol::Base") ? $output->frame_wrap : $output;
     $frame->channel(2);
     _print($frame);
     $output = Net::AMQP::Frame::Header->new(
-        weight       => 0,
-        body_size    => length($message),
-        header_frame => Net::AMQP::Protocol::Basic::ContentHeader->new(%content_opts),
+        weight    => 0,
+        body_size => length($message),
+        header_frame =>
+          Net::AMQP::Protocol::Basic::ContentHeader->new(%content_opts),
     );
-    $frame = $output->isa("Net::AMQP::Protocol::Base") ? $output->frame_wrap : $output;
+    $frame =
+      $output->isa("Net::AMQP::Protocol::Base") ? $output->frame_wrap : $output;
     $frame->channel(2);
     _print($frame);
-    $output = Net::AMQP::Frame::Body->new(payload => $message);
-    $frame = $output->isa("Net::AMQP::Protocol::Base") ? $output->frame_wrap : $output;
+    $output = Net::AMQP::Frame::Body->new( payload => $message );
+    $frame =
+      $output->isa("Net::AMQP::Protocol::Base") ? $output->frame_wrap : $output;
     $frame->channel(2);
     _print($frame);
 
 }
-
 
 sub _print {
     my $output = shift;
@@ -258,6 +269,28 @@ sub _print {
 
     print STDERR "--> " . Dumper($output) . "\n" if $debug;
     print $remote $output->to_raw_frame();
+}
+
+sub _get_channel {
+    my $channel = shift;
+    my $home = '/tmp/Net-AMQP';
+    mkdir($home);
+
+    tie my %h, "BerkeleyDB::Hash",
+          -Home     => $home,
+          -Filename => 'Channel.db',
+          -Flags    => DB_CREATE
+      or die "Cannot open Channel.db  $! $BerkeleyDB::Error\n";
+
+    if($h{$channel}){
+        return $h{$channel};
+    } else {
+        my $_c = $h{_last}++ if $h{_last};
+        $_c = 2 unless $h{_last};
+        $h{$channel} = $_c;
+        $h{_last} = $_c;
+        return $_c;
+    }
 }
 
 1;
