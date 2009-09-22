@@ -54,14 +54,15 @@ sub queue {
         method_frame => Net::AMQP::Protocol::Queue::Declare->new(%opts) );
     my $frame =
       $output->isa("Net::AMQP::Protocol::Base") ? $output->frame_wrap : $output;
-    $frame->channel(2);
+    my $c = _get_channel($queue);
+    $frame->channel($c);
     _print($frame);
     $output =
       Net::AMQP::Frame::Method->new(
         method_frame => Net::AMQP::Protocol::Basic::Consume->new(%opts) );
     $frame =
       $output->isa("Net::AMQP::Protocol::Base") ? $output->frame_wrap : $output;
-    $frame->channel(2);
+    $frame->channel($c);
     _print($frame);
 }
 
@@ -92,7 +93,8 @@ sub queue_delete {
         method_frame => Net::AMQP::Protocol::Queue::Delete->new(%opts) );
     my $frame =
       $output->isa("Net::AMQP::Protocol::Base") ? $output->frame_wrap : $output;
-    $frame->channel(2);
+    my $c = _get_channel($queue);
+    $frame->channel($c);
     _print($frame);
     _read();
 }
@@ -196,7 +198,8 @@ sub callbacks {
                         $output->isa("Net::AMQP::Protocol::Base")
                       ? $output->frame_wrap
                       : $output;
-                    $frame->channel(2);
+                    my $c = _get_channel('init');
+                    $frame->channel($c);
                     _print($frame);
                     next FRAMES;
                 }
@@ -272,7 +275,7 @@ sub _print {
 }
 
 sub _get_channel {
-    my $channel = shift;
+    my $queue = shift;
     my $home = '/tmp/Net-AMQP';
     mkdir($home);
 
@@ -282,14 +285,18 @@ sub _get_channel {
           -Flags    => DB_CREATE
       or die "Cannot open Channel.db  $! $BerkeleyDB::Error\n";
 
-    if($h{$channel}){
-        return $h{$channel};
+    if($h{init}){
+        $h{$queue} = $h{init};
+        delete $h{init};
+    }
+    if($h{$queue}){
+        return $h{$queue};
     } else {
-        my $_c = $h{_last}++ if $h{_last};
-        $_c = 2 unless $h{_last};
-        $h{$channel} = $_c;
-        $h{_last} = $_c;
-        return $_c;
+        my $channel = $h{_last}++ if $h{_last};
+        $channel = 2 unless $h{_last};
+        $h{$queue} = $channel;
+        $h{_last} = $channel;
+        return $channel;
     }
 }
 
