@@ -27,9 +27,9 @@ BEGIN {
 }
 __PACKAGE__->type_id(2);
 
-=head1 OBJECT METHODS
+our $VERSION = 0.01;
 
-=over 4
+=head1 OBJECT METHODS
 
 Provides the following field accessors
 
@@ -44,8 +44,6 @@ Provides the following field accessors
 =item I<header_frame>
 
 Exposes the L<Net::AMQP::Protocol::Base> object that this frame wraps
-
-=back
 
 =back
 

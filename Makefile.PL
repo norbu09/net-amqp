@@ -19,4 +19,3 @@ install_share  'share/Net-AMQP';
 auto_install;
 
 WriteAll;
-
