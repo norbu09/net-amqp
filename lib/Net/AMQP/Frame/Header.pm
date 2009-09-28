@@ -56,7 +56,7 @@ sub register_header_class {
     my $registered = $self_class->registered_header_classes;
 
     if (my $exists = $registered->{$class_id}) {
-        croak "Can't register header class for $class_id: already used by '$exists'";
+        warn "Can't register header class for $class_id: already used by '$exists'";
     }
 
     $registered->{$class_id} = $header_class;

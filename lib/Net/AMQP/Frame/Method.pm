@@ -58,7 +58,7 @@ sub register_method_class {
     my $registered = $self_class->registered_method_classes;
 
     if (my $exists = $registered->{$key}) {
-        croak "Can't register method class for $key: already used by '$exists'";
+        warn "Can't register method class for $key: already used by '$exists'";
     }
 
     $registered->{$key} = $method_class;
